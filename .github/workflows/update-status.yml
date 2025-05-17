@@ -43,6 +43,7 @@ jobs:
         env:
           GH_PAT: ${{ secrets.GH_PAT }}  # Personal Access Token secret
         run: |
+          curl -H "Authorization: token $GH_PAT" https://api.github.com/user/repos
           git config --global user.name 'kar137'
           git config --global user.email 'kar137@users.noreply.github.com'
           git add status.json
