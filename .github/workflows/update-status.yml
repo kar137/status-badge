@@ -20,7 +20,7 @@ jobs:
           NOW=$(date +%s)
           DIFF=$(( (NOW - LAST) / 60 ))
 
-          if [ "$DIFF" -lt 120 ]; then
+          if [ "$DIFF" -lt 7200 ]; then
             MSG="Coding"
             COLOR="blue"
           else
