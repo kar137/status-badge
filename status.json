@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "label": "Now",
-  "message": "Coding",
-  "color": "blue"
+  "message": "Offline",
+  "color": "lightgrey"
 }
