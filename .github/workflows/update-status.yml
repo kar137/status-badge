@@ -2,7 +2,7 @@ name: Update Status Badge
 
 on:
   schedule:
-    - cron: "*/5 * * * *"  # Every 5 minutes (for testing)
+    - cron: "*/5 * * * *"  # Every 5 minutes
   workflow_dispatch:
 
 jobs:
@@ -12,48 +12,65 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v3
+        with:
+          fetch-depth: 0  # Get full commit history
 
-      - name: Fetch latest activity
+      - name: Setup jq
+        run: sudo apt-get install -y jq
+
+      - name: Fetch latest commits
         env:
           GH_PAT: ${{ secrets.GH_PAT }}
         run: |
           USER="kar137"
-          echo "Checking latest GitHub activity..."
+          echo "🔍 Checking latest GitHub commits..."
 
-          # Fetch latest event (public + private)
-          LAST_EVENT=$(curl -s -H "Authorization: token $GH_PAT" \
-            "https://api.github.com/users/$USER/events?per_page=1" | \
-            jq -r '.[0].created_at // empty')
+          # Fetch most recent PushEvent (commits only)
+          LAST_COMMIT=$(curl -s -H "Authorization: token $GH_PAT" \
+            "https://api.github.com/users/$USER/events?per_page=10" | \
+            jq -r 'map(select(.type == "PushEvent"))[0].created_at // empty')
 
-          if [ -z "$LAST_EVENT" ]; then
-            echo "❌ No recent activity found."
+          if [ -z "$LAST_COMMIT" ]; then
+            echo "❌ No recent commits found."
             MSG="Offline"
             COLOR="lightgrey"
           else
-            LAST_SEC=$(date -d "$LAST_EVENT" +%s)
+            LAST_SEC=$(date -d "$LAST_COMMIT" +%s)
             NOW_SEC=$(date +%s)
             DIFF_MIN=$(( (NOW_SEC - LAST_SEC) / 60 ))
 
-            if [ "$DIFF_MIN" -lt 55 ]; then  # 30-minute threshold
+            if [ "$DIFF_MIN" -lt 30 ]; then  # 30-minute threshold
               MSG="Coding 🚀"
               COLOR="brightgreen"
-            else
+            elif [ "$DIFF_MIN" -lt 120 ]; then
               MSG="Away"
               COLOR="yellow"
+            else
+              MSG="Offline"
+              COLOR="lightgrey"
             fi
-            echo "Last activity: $LAST_EVENT ($DIFF_MIN mins ago)"
+            echo "⏱️ Last commit: $LAST_COMMIT ($DIFF_MIN mins ago)"
           fi
 
-          # Update badge
-          echo '{"schemaVersion":1,"label":"Status","message":"'"$MSG"'","color":"'"$COLOR"'"}' > status.json
+          # Generate badge
+          echo "{
+            \"schemaVersion\": 1,
+            \"label\": \"Status\",
+            \"message\": \"$MSG\",
+            \"color\": \"$COLOR\",
+            \"cacheSeconds\": 300
+          }" > status.json
 
-          # Commit if changed
+          # Commit changes
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
           git add status.json
-          if git commit -m "Update status: $MSG [skip ci]"; then
+          
+          if git diff --cached --quiet; then
+            echo "🔄 No status changes detected."
+          else
+            git commit -m "Update status: $MSG [skip ci]"
             git push "https://$USER:$GH_PAT@github.com/$USER/status-badge.git" HEAD:main
             echo "✅ Status updated to: $MSG"
-          else
-            echo "⏩ No changes detected."
+            echo "✏️ Badge URL: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/$USER/status-badge/main/status.json&cache=$(date +%s)"
           fi
