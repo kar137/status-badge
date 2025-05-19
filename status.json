@@ -1,6 +1,1 @@
-{
-  "schemaVersion": 1,
-  "label": "Status",
-  "message": "Offline",
-  "color": "lightgrey"
-}
+{"schemaVersion":1,"label":"Status","message":"Away","color":"yellow"}
