@@ -12,6 +12,11 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
+        with:
+          persist-credentials: false  # Important for PAT auth later
+
+      - name: Setup jq
+        run: sudo apt-get install -y jq
 
       - name: Check GitHub activity and update status
         env:
@@ -22,7 +27,10 @@ jobs:
           USER="kar137"
           echo "🔍 Fetching latest public GitHub event for $USER..."
 
-          LAST_EVENT=$(curl -s https://api.github.com/users/$USER/events/public | jq '.[0].created_at' | tr -d '"')
+          # Use authenticated request with PAT
+          LAST_EVENT=$(curl -s -H "Authorization: token $GH_PAT" \
+            "https://api.github.com/users/$USER/events/public?per_page=1" | \
+            jq -r '.[0].created_at // empty')
 
           if [ -z "$LAST_EVENT" ]; then
             echo "❌ Failed to fetch event or user has no public activity."
@@ -35,7 +43,7 @@ jobs:
 
           if [ "$DIFF" -lt 120 ]; then
             MSG="Coding"
-            COLOR="blue"
+            COLOR="brightgreen"
           else
             MSG="Offline"
             COLOR="lightgrey"
@@ -47,29 +55,20 @@ jobs:
 
           echo "{
             \"schemaVersion\": 1,
-            \"label\": \"Now\",
+            \"label\": \"Status\",
             \"message\": \"$MSG\",
             \"color\": \"$COLOR\"
-          }" > new_status.json
+          }" > status.json
 
-          if [ ! -f status.json ]; then
-            echo "⚠️ status.json does not exist. Creating new file."
-            mv new_status.json status.json
-            COMMIT_NEEDED=true
-          elif ! cmp -s new_status.json status.json; then
-            echo "✅ Detected change in status.json"
-            mv new_status.json status.json
-            COMMIT_NEEDED=true
-          else
+          # Check if we need to commit
+          if git diff --quiet --exit-code status.json; then
             echo "ℹ️ No changes to status.json. Skipping commit."
-            COMMIT_NEEDED=false
-          fi
-
-          if [ "$COMMIT_NEEDED" = true ]; then
-            git config --global user.name "kar137"
-            git config --global user.email "kar137@users.noreply.github.com"
+          else
+            echo "✅ Detected changes in status.json"
+            git config --global user.name "GitHub Actions"
+            git config --global user.email "actions@github.com"
             git add status.json
-            git commit -m "Update status to $MSG"
-            git push https://kar137:${GH_PAT}@github.com/kar137/status-badge.git HEAD:main
+            git commit -m "Update status to $MSG [skip ci]"
+            git push "https://$USER:$GH_PAT@github.com/$USER/status-badge.git" HEAD:main
             echo "🚀 Commit and push completed."
           fi
