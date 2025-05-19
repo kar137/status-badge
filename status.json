@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "label": "Status",
-  "message": "Offline",
-  "color": "lightgrey",
-  "cacheSeconds": 300
+  "message": "Coding 🚀",
+  "color": "brightgreen",
+  "cacheSeconds": 60
 }
