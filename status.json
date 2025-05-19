@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "label": "Status",
-  "message": "Coding 🚀",
-  "color": "brightgreen",
+  "message": "Away",
+  "color": "yellow",
   "cacheSeconds": 60
 }
