@@ -2,22 +2,33 @@ name: Update Status Badge
 
 on:
   schedule:
-    - cron: "*/15 * * * *"
+    - cron: "*/15 * * * *"  # Every 15 minutes
   workflow_dispatch:
 
 jobs:
   update-status:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout repo
+      - name: Checkout repository
         uses: actions/checkout@v3
 
       - name: Check GitHub activity and update status
         env:
           GH_PAT: ${{ secrets.GH_PAT }}
         run: |
+          set -e  # Stop if any command fails
+
           USER="kar137"
+          echo "🔍 Fetching latest public GitHub event for $USER..."
+
           LAST_EVENT=$(curl -s https://api.github.com/users/$USER/events/public | jq '.[0].created_at' | tr -d '"')
+
+          if [ -z "$LAST_EVENT" ]; then
+            echo "❌ Failed to fetch event or user has no public activity."
+            exit 0
+          fi
+
           LAST=$(date -d "$LAST_EVENT" +%s)
           NOW=$(date +%s)
           DIFF=$(( (NOW - LAST) / 60 ))
@@ -30,27 +41,35 @@ jobs:
             COLOR="lightgrey"
           fi
 
-          echo "LAST_EVENT: $LAST_EVENT"
-          echo "DIFF: $DIFF minutes"
-          echo "Updating status to $MSG"
+          echo "🕒 Last activity: $LAST_EVENT"
+          echo "⏱️  Difference: $DIFF minutes"
+          echo "📦 Updating status to: $MSG"
 
-          NEW_FILE="status.json"
-          cat <<EOF > $NEW_FILE
-          {
-            "schemaVersion": 1,
-            "label": "Now",
-            "message": "$MSG",
-            "color": "$COLOR"
-          }
-EOF
+          echo "{
+            \"schemaVersion\": 1,
+            \"label\": \"Now\",
+            \"message\": \"$MSG\",
+            \"color\": \"$COLOR\"
+          }" > new_status.json
 
-          if ! cmp -s $NEW_FILE status.json; then
-            mv $NEW_FILE status.json
-            git config --global user.name 'kar137'
-            git config --global user.email 'kar137@users.noreply.github.com'
+          if [ ! -f status.json ]; then
+            echo "⚠️ status.json does not exist. Creating new file."
+            mv new_status.json status.json
+            COMMIT_NEEDED=true
+          elif ! cmp -s new_status.json status.json; then
+            echo "✅ Detected change in status.json"
+            mv new_status.json status.json
+            COMMIT_NEEDED=true
+          else
+            echo "ℹ️ No changes to status.json. Skipping commit."
+            COMMIT_NEEDED=false
+          fi
+
+          if [ "$COMMIT_NEEDED" = true ]; then
+            git config --global user.name "kar137"
+            git config --global user.email "kar137@users.noreply.github.com"
             git add status.json
             git commit -m "Update status to $MSG"
             git push https://kar137:${GH_PAT}@github.com/kar137/status-badge.git HEAD:main
-          else
-            echo "No change in status, skipping commit."
+            echo "🚀 Commit and push completed."
           fi
