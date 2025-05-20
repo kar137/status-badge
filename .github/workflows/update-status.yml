@@ -40,10 +40,10 @@ jobs:
           else
             DIFF_MIN=$(( ($(date +%s) - $(date -d "$LAST_COMMIT" +%s)) / 60 ))
             
-            if [ "$DIFF_MIN" -lt 55 ]; then
+            if [ "$DIFF_MIN" -lt 120 ]; then
               MSG="Coding 🚀"
-              COLOR="brightgreen"
-            elif [ "$DIFF_MIN" -lt 150 ]; then
+              COLOR="blue"
+            elif [ "$DIFF_MIN" -lt 200 ]; then
               MSG="Away"
               COLOR="yellow"
             else
