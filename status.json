@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "label": "Status",
-  "message": "Offline",
-  "color": "lightgrey",
+  "message": "Away",
+  "color": "yellow",
   "cacheSeconds": 60
 }
